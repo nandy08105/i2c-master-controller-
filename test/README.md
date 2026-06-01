@@ -1,47 +1,109 @@
-# Sample testbench for a Tiny Tapeout project
+# I2C Master Controller for TinyTapeout
 
-This is a sample testbench for a Tiny Tapeout project. It uses [cocotb](https://docs.cocotb.org/en/stable/) to drive the DUT and check the outputs.
-See below to get started or for more information, check the [website](https://tinytapeout.com/hdl/testing/).
+## Overview
 
-## Setting up
+This project implements a simple I2C Master Controller in Verilog for the TinyTapeout platform. The controller can initiate single-byte I2C read and write transactions to a slave device.
 
-1. Edit [Makefile](Makefile) and modify `PROJECT_SOURCES` to point to your Verilog files.
-2. Edit [tb.v](tb.v) and replace `tt_um_example` with your module name.
+The design generates the I2C START condition, transmits the slave address and R/W bit, handles ACK cycles, transfers one data byte, and generates the STOP condition.
 
-## How to run
+---
 
-To run the RTL simulation:
+## Features
 
-```sh
-make -B
+* Single-byte I2C write operation
+* Single-byte I2C read operation
+* I2C START and STOP generation
+* ACK handling
+* TinyTapeout compatible interface
+* Implemented in Verilog RTL
+
+---
+
+## Pin Mapping
+
+### Inputs (`ui_in[7:0]`)
+
+| Bit        | Function                      |
+| ---------- | ----------------------------- |
+| ui_in[7]   | cmd_valid (start transaction) |
+| ui_in[6]   | rw (0 = write, 1 = read)      |
+| ui_in[5:0] | I2C slave address bits        |
+
+### Outputs (`uo_out[7:0]`)
+
+| Bit         | Function                    |
+| ----------- | --------------------------- |
+| uo_out[7:0] | Received data byte / status |
+
+### Bidirectional Pins (`uio`)
+
+| Pin           | Function |
+| ------------- | -------- |
+| uio[0]        | I2C SCL  |
+| uio[1]        | I2C SDA  |
+| uio[2]–uio[7] | Unused   |
+
+---
+
+## Clock
+
+* System Clock: 10 MHz
+* Configured using TinyTapeout clock input (`clk`)
+
+---
+
+## Simulation
+
+Run the simulation using Icarus Verilog:
+
+```bash
+iverilog -g2012 -o sim test/tb.v src/project.v
+vvp sim
 ```
 
-To run gatelevel simulation, first harden your project and copy `../runs/wokwi/results/final/verilog/gl/{your_module_name}.v` to `gate_level_netlist.v`.
+View waveforms:
 
-Then run:
-
-```sh
-make -B GATES=yes
+```bash
+gtkwave tb.vcd
 ```
 
-If you wish to save the waveform in VCD format instead of FST format, edit tb.v to use `$dumpfile("tb.vcd");` and then run:
+---
 
-```sh
-make -B FST=
+## Cocotb Test
+
+Run the TinyTapeout cocotb test:
+
+```bash
+pytest
 ```
 
-This will generate `tb.vcd` instead of `tb.fst`.
+or use the TinyTapeout GitHub Actions workflow.
 
-## How to view the waveform file
+---
 
-Using GTKWave
+## File Structure
 
-```sh
-gtkwave tb.fst tb.gtkw
+```text
+src/
+├── project.v
+├── config.json
+
+test/
+├── tb.v
+├── test.py
+
+info.yaml
+README.md
 ```
 
-Using Surfer
+---
 
-```sh
-surfer tb.fst
-```
+## Author
+
+Your Name
+
+## License
+
+MIT License
+
+
