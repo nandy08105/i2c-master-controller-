@@ -1,10 +1,15 @@
-
+--- 
 project:
-  title:    "I2C Master Controller"
-  author:   "Your Name"
-  description: "Single-byte I2C master controller. ui_in[7]=cmd_valid, ui_in[6]=RW, ui_in[5:0]=addr. uio[0]=SCL, uio[1]=SDA."
-  language: "Verilog"
-  clock_hz: 10000000   # 10 MHz
+  title:       "I2C Master Controller"
+  author:      "Your Name"
+  description: >
+    I2C master controller. Initiates single-byte read/write transactions.
+    ui_in[7]=cmd_valid, ui_in[6]=RW, ui_in[5:0]=7-bit slave address.
+    uio[0]=SCL output, uio[1]=SDA bidirectional.
+    uo_out returns received data byte.
+  language:    "Verilog"
+  clock_hz:    10000000
+
   inputs:
     - "cmd_valid / write_data[7]"
     - "rw / write_data[6]"
@@ -14,6 +19,7 @@ project:
     - "addr[2] / write_data[2]"
     - "addr[1] / write_data[1]"
     - "addr[0] / write_data[0]"
+
   outputs:
     - "read_data[0]"
     - "read_data[1]"
@@ -23,8 +29,9 @@ project:
     - "read_data[5]"
     - "read_data[6]"
     - "read_data[7]"
+
   bidirectional:
-    - "SCL (out)"
+    - "SCL (driven output)"
     - "SDA (bidirectional)"
     - "none"
     - "none"
@@ -32,3 +39,28 @@ project:
     - "none"
     - "none"
     - "none"
+
+  pinout:
+    # Inputs
+    ui[0]: "cmd_valid / write_data[7]"
+    ui[1]: "rw / write_data[6]"
+    ui[2]: "addr[5] / write_data[5]"
+    ui[3]: "addr[4] / write_data[4]"
+    ui[4]: "addr[3] / write_data[3]"
+    ui[5]: "addr[2] / write_data[2]"
+    ui[6]: "addr[1] / write_data[1]"
+    ui[7]: "addr[0] / write_data[0]"
+    # Outputs
+    uo[0]: "read_data[0]"
+    uo[1]: "read_data[1]"
+    uo[2]: "read_data[2]"
+    uo[3]: "read_data[3]"
+    uo[4]: "read_data[4]"
+    uo[5]: "read_data[5]"
+    uo[6]: "read_data[6]"
+    uo[7]: "read_data[7]"
+    # Bidirectional
+    uio[0]: "SCL"
+    uio[1]: "SDA"
+
+  documentation_html: ""
