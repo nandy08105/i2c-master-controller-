@@ -1,7 +1,7 @@
 --- 
 project:
   title:       "I2C Master Controller"
-  author:      "Your Name"
+  author:      "Nandhakishoore"
   description: >
     I2C master controller. Initiates single-byte read/write transactions.
     ui_in[7]=cmd_valid, ui_in[6]=RW, ui_in[5:0]=7-bit slave address.
