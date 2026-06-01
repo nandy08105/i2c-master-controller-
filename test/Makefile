@@ -1,45 +1,201 @@
-# Makefile
-# See https://docs.cocotb.org/en/stable/quickstart.html for more info
+# ============================================================
+#  Makefile for tt-i2c-master (TinyTapeout / OpenLane)
+#  Usage:
+#    make sim        → compile + run iverilog simulation
+#    make waves      → open GTKWave
+#    make lint       → run Verilator lint check
+#    make clean      → remove build artifacts
+#    make help       → show all targets
+# ============================================================
 
-# defaults
-SIM ?= icarus
-FST ?= -fst # Use more efficient FST format
-TOPLEVEL_LANG ?= verilog
-SRC_DIR = $(PWD)/../src
-PROJECT_SOURCES = project.v
+# ── Paths ────────────────────────────────────────────────────
+SRC_DIR    := src
+TEST_DIR   := test
+BUILD_DIR  := build
 
-ifneq ($(GATES),yes)
+TOP_MODULE := tt_um_example
+SRC_FILE   := $(SRC_DIR)/project.v
+TB_FILE    := $(TEST_DIR)/tb.v
+SIM_BIN    := $(BUILD_DIR)/sim
+VCD_FILE   := $(BUILD_DIR)/tb.vcd
 
-# RTL simulation:
-SIM_BUILD				= sim_build/rtl
-VERILOG_SOURCES += $(addprefix $(SRC_DIR)/,$(PROJECT_SOURCES))
+# ── Tools ────────────────────────────────────────────────────
+IVERILOG   := iverilog
+VVP        := vvp
+GTKWAVE    := gtkwave
+VERILATOR  := verilator
 
-else
+# ── Iverilog flags ───────────────────────────────────────────
+IFLAGS     := -g2012 \
+              -Wall \
+              -Wno-timescale \
+              -I$(SRC_DIR)
 
-# Gate level simulation:
-SIM_BUILD				= sim_build/gl
-COMPILE_ARGS    += -DGL_TEST
-COMPILE_ARGS    += -DFUNCTIONAL
-COMPILE_ARGS    += -DUSE_POWER_PINS
-COMPILE_ARGS    += -DSIM
-COMPILE_ARGS    += -DUNIT_DELAY=\#1
-VERILOG_SOURCES += $(PDK_ROOT)/gf180mcuD/libs.ref/gf180mcu_fd_sc_mcu7t5v0/verilog/primitives.v
-VERILOG_SOURCES += $(PDK_ROOT)/gf180mcuD/libs.ref/gf180mcu_fd_sc_mcu7t5v0/verilog/gf180mcu_fd_sc_mcu7t5v0.v
+# ============================================================
+#  Default target
+# ============================================================
+.PHONY: all
+all: sim
 
-# this gets copied in by the GDS action workflow
-VERILOG_SOURCES += $(PWD)/gate_level_netlist.v
+# ============================================================
+#  Create build directory
+# ============================================================
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
 
-endif
+# ============================================================
+#  Compile + Simulate
+# ============================================================
+.PHONY: sim
+sim: $(BUILD_DIR)
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "  Compiling I2C Master..."
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	$(IVERILOG) $(IFLAGS) \
+		-o $(SIM_BIN) \
+		$(TB_FILE) $(SRC_FILE)
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "  Running simulation..."
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	cd $(BUILD_DIR) && $(VVP) sim
+	@echo ""
+	@echo "  ✅  Simulation complete → $(VCD_FILE)"
+	@echo ""
 
-# Allow sharing configuration between design and testbench via `include`:
-COMPILE_ARGS 		+= -I$(SRC_DIR)
+# ============================================================
+#  Open GTKWave
+# ============================================================
+.PHONY: waves
+waves: $(VCD_FILE)
+	@echo "  Opening GTKWave..."
+	$(GTKWAVE) $(VCD_FILE) &
 
-# Include the testbench sources:
-VERILOG_SOURCES += $(PWD)/tb.v
-TOPLEVEL = tb
+$(VCD_FILE):
+	@echo "  ⚠  VCD not found. Run 'make sim' first."
+	@exit 1
 
-# List test modules to run, separated by commas and without the .py suffix:
-COCOTB_TEST_MODULES = test
+# ============================================================
+#  Lint with Verilator
+# ============================================================
+.PHONY: lint
+lint:
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "  Linting $(SRC_FILE)..."
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	$(VERILATOR) --lint-only \
+		-Wall \
+		--top-module $(TOP_MODULE) \
+		$(SRC_FILE)
+	@echo "  ✅  Lint passed"
+	@echo ""
 
-# include cocotb's make rules to take care of the simulator setup
-include $(shell cocotb-config --makefiles)/Makefile.sim
+# ============================================================
+#  Check tools are installed
+# ============================================================
+.PHONY: check-tools
+check-tools:
+	@echo "Checking required tools..."
+	@command -v $(IVERILOG)  >/dev/null 2>&1 && echo "  ✅  iverilog  found" || echo "  ❌  iverilog  missing → sudo apt install iverilog"
+	@command -v $(VVP)       >/dev/null 2>&1 && echo "  ✅  vvp       found" || echo "  ❌  vvp       missing → sudo apt install iverilog"
+	@command -v $(GTKWAVE)   >/dev/null 2>&1 && echo "  ✅  gtkwave   found" || echo "  ❌  gtkwave   missing → sudo apt install gtkwave"
+	@command -v $(VERILATOR) >/dev/null 2>&1 && echo "  ✅  verilator found" || echo "  ❌  verilator missing → sudo apt install verilator"
+
+# ============================================================
+#  Install tools (Ubuntu / Debian / WSL)
+# ============================================================
+.PHONY: install-tools
+install-tools:
+	@echo "  Installing simulation tools..."
+	sudo apt update
+	sudo apt install -y iverilog gtkwave verilator
+	@echo "  ✅  Done"
+
+# ============================================================
+#  Show file sizes and stats
+# ============================================================
+.PHONY: stats
+stats:
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "  Design Statistics"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "  Source lines:"
+	@wc -l $(SRC_FILE)
+	@echo "  Testbench lines:"
+	@wc -l $(TB_FILE)
+	@echo "  Module name:"
+	@grep "^module" $(SRC_FILE)
+	@echo ""
+
+# ============================================================
+#  Clean build artifacts
+# ============================================================
+.PHONY: clean
+clean:
+	@echo "  Cleaning build artifacts..."
+	rm -rf $(BUILD_DIR)
+	rm -f  *.vcd *.vvp sim
+	@echo "  ✅  Clean complete"
+
+# ============================================================
+#  Full flow: lint → sim → waves
+# ============================================================
+.PHONY: flow
+flow: lint sim waves
+	@echo ""
+	@echo "  ✅  Full flow complete"
+	@echo ""
+
+# ============================================================
+#  Git shortcuts
+# ============================================================
+.PHONY: push
+push:
+	@echo "  Staging all changes..."
+	git add src/project.v test/tb.v info.yaml src/config.json Makefile
+	git status
+	@read -p "  Commit message: " msg; \
+	git commit -m "$$msg"
+	git push origin main
+	@echo "  ✅  Pushed → GitHub Actions will run automatically"
+
+.PHONY: status
+status:
+	git status
+	git log --oneline -5
+
+# ============================================================
+#  Help
+# ============================================================
+.PHONY: help
+help:
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "   tt-i2c-master Makefile targets"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo ""
+	@echo "  Simulation"
+	@echo "    make sim           Compile + run iverilog simulation"
+	@echo "    make waves         Open GTKWave waveform viewer"
+	@echo "    make flow          lint → sim → waves in one shot"
+	@echo ""
+	@echo "  Verification"
+	@echo "    make lint          Run Verilator lint check"
+	@echo "    make stats         Show line counts and module info"
+	@echo ""
+	@echo "  Setup"
+	@echo "    make check-tools   Check all tools are installed"
+	@echo "    make install-tools Install iverilog/gtkwave/verilator"
+	@echo ""
+	@echo "  Git"
+	@echo "    make push          Stage, commit, push to GitHub"
+	@echo "    make status        git status + last 5 commits"
+	@echo ""
+	@echo "  Cleanup"
+	@echo "    make clean         Remove build/ and .vcd files"
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo ""
